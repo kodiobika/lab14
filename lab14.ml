@@ -18,37 +18,37 @@ module LazyStream =
 
     type 'a stream_internal = Cons of 'a * 'a stream
      and 'a stream = unit -> 'a stream_internal ;;
-      
+
     (* Extracting the head and tail of a lazy stream *)
     let head (s : 'a stream) : 'a =
       let Cons (h, _t) = s () in h ;;
-      
+
     let tail (s : 'a stream) : 'a stream =
       let Cons (_h, t) = s () in t ;;
-      
+
     (* Extracting the first n elements of a stream into a list *)
     let rec first (n : int) (s : 'a stream) : 'a list =
       if n = 0 then []
       else head s :: first (n - 1) (tail s) ;;
-      
+
     (* Mapping a function lazily over a stream *)
-    let rec smap (f : 'a -> 'b) (s : 'a stream) : ('b stream) = 
+    let rec smap (f : 'a -> 'b) (s : 'a stream) : ('b stream) =
       fun () -> Cons (f (head s), smap f (tail s)) ;;
-      
+
     (* Mapping a binary function over two streams *)
-    let rec smap2 f s1 s2 = 
+    let rec smap2 f s1 s2 =
       fun () -> Cons (f (head s1) (head s2),
                       smap2 f (tail s1) (tail s2)) ;;
   end ;;
-  
+
 open LazyStream ;;
-  
+
 (* Here, recalled from the reading, is the definition of an infinite
 stream of ones. *)
-  
+
 let rec ones : int stream =
   fun () -> Cons (1, ones) ;;
-  
+
 (* Now you define some useful streams. Some of these were defined in
 the reading, but see if you can come up with the definitions without
 looking them up. *)
@@ -57,23 +57,26 @@ looking them up. *)
 Exercise 1. An infinite stream of the integer 2. As usual, for this
 and all succeeding exercises, you shouldn't feel beholden to how the
 definition is introduced in the skeleton code below. (We'll stop
-mentioning this now, and forevermore.) 
+mentioning this now, and forevermore.)
 ....................................................................*)
 
-let twos = fun () -> failwith "twos not implemented" ;;
+let rec twos =
+  fun () -> Cons (2, twos) ;;
 
 (*....................................................................
 Exercise 2. An infinite stream of threes, built from the ones and
 twos.
 ....................................................................*)
 
-let threes = fun () -> failwith "threes not implemented" ;;
-  
+let threes =
+  smap2 (+) ones twos ;;
+
 (*....................................................................
 Exercise 3. An infinite stream of natural numbers (0, 1, 2, 3, ...).
 ....................................................................*)
 
-let nats = fun () -> failwith "nats not implemented" ;;
+let rec nats =
+  fun () -> Cons (0, smap ((+) 1) nats) ;;
 
 (*....................................................................
 Exercise 4. Create a function zip_stream, which takes two streams and
@@ -85,12 +88,13 @@ twos (2,2,2,2....) would look like this:
 
    let ones_twos = zip_stream ones twos;;
    -: val ones_twos : int stream = <fun>
-   
+
    first 6 ones_twos;;
    -: int list = [1; 2; 1; 2; 1; 2]
 ....................................................................*)
 
-let zip_stream = fun _ -> failwith "zip_stream not implemented";;
+let rec zip_stream (s1 : 'a stream) (s2 : 'a stream) : 'a stream =
+  fun () -> Cons (head s1, zip_stream s2 (tail s1)) ;;
 
 (* Now some new examples. For these, you should build them from
 previous streams (ones, twos, threes, nats) by making use of the
@@ -101,8 +105,8 @@ Exercise 5. Generate two infinite streams, one of the even natural
 numbers, and one of the odds.
 ....................................................................*)
 
-let evens _ = failwith "evens not implemented" ;;
-let odds _ = failwith "odds not implemented" ;;
+let evens = smap2 (+) nats nats ;;
+let odds = smap ((+) 1) evens ;;
 
 (* In addition to mapping over streams, we should be able to use all
 the other higher-order list functions you've grown to know and love,
@@ -123,15 +127,19 @@ filtering the natural numbers for the evens:
 Now define sfilter.
 ....................................................................*)
 
-let sfilter _ = failwith "sfilter not implemented" ;;
-  
+let rec sfilter (pred : 'a -> bool) (s : 'a stream) : 'a stream =
+  fun () ->
+    let Cons (h, t) = s () in
+    if pred h then Cons (h, sfilter pred t)
+    else (sfilter pred t) () ;;
+
 (*....................................................................
 Exercise 7. Now redefine evens and odds (as evens2 and odds2) using
-sfilter. 
+sfilter.
 ....................................................................*)
 
-let evens2 _ = failwith "evens with sfilter not implemented" ;;
-let odds2 _ = failwith "odds with sfilter not implemented" ;;
+let evens2 = sfilter even nats ;;
+let odds2 = sfilter odd nats ;;
 
 (*====================================================================
 Part 2: Eratosthenes' Sieve
@@ -162,7 +170,7 @@ and again:
 ...
 2 3 5 7 11 13
 
-Implement Eratosthenes sieve to generate an infinite stream of primes. 
+Implement Eratosthenes sieve to generate an infinite stream of primes.
 Example:
 
 # primes = sieve (tail (tail nats)) ;;
@@ -192,8 +200,10 @@ useful: *)
 
 (* not_div_by n m -- Predicate determines if m is evenly divisible
    by n *)
-let not_div_by (n : int) (m : int) : bool = 
+let not_div_by (n : int) (m : int) : bool =
   not (m mod n = 0) ;;
 
-let rec sieve s = failwith "sieve not implemented" ;;
-
+  let rec sieve s =
+    fun () ->
+      let Cons (h, t) = s () in
+      Cons (h, sieve (sfilter (not_div_by h) t)) ;;
