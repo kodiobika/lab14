@@ -138,6 +138,9 @@ Exercise 7. Now redefine evens and odds (as evens2 and odds2) using
 sfilter.
 ....................................................................*)
 
+let even x = (x mod 2) = 0 ;;
+let odd x = not (even x) ;;
+
 let evens2 = sfilter even nats ;;
 let odds2 = sfilter odd nats ;;
 
@@ -203,7 +206,6 @@ useful: *)
 let not_div_by (n : int) (m : int) : bool =
   not (m mod n = 0) ;;
 
-  let rec sieve s =
-    fun () ->
-      let Cons (h, t) = s () in
-      Cons (h, sieve (sfilter (not_div_by h) t)) ;;
+let rec sieve (s : int stream) : int stream =
+  let Cons (h, t) = s () in
+  fun () -> Cons (h, sieve (sfilter (not_div_by h) t)) ;; 
